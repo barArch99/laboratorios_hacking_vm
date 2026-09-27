@@ -1,0 +1,74 @@
+BÚSQUEDA DE VULNERABILIDADES - LABORATORIO PERSONAL
+===================================================
+Fecha: 2026-09-16
+Autor: edgarpenagarcia2107@gmail.com
+Objetivo: VM propia (172.20.10.11) - laboratorio de práctica
+Fase: Enumeración / identificación de vulnerabilidades (NO explotación
+todavía - eso iría en un archivo/fase aparte más adelante si se llega
+a ejecutar).
+
+Continúa del archivo: reconocimiento.txt (misma carpeta)
+
+===================================================
+1. INTENTO DE OBTENER SO EXACTO VÍA SMB
+===================================================
+
+Comando ejecutado:
+    nmap --script smb-os-discovery -p445 172.20.10.11
+
+Resultado:
+    PORT    STATE SERVICE
+    445/tcp open  microsoft-ds
+    (sin líneas de "OS:", "Computer name:", etc.)
+
+Interpretación:
+El script no devolvió información del sistema operativo. Esto no es
+un fallo del comando, es un comportamiento esperado: desde Windows
+Vista/7 en adelante, Microsoft deshabilitó por defecto las sesiones
+SMB nulas/anónimas, que eran el mecanismo que este script usa para
+consultar el SO sin credenciales. Sistemas antiguos (XP, Server 2003)
+solían responder esto abiertamente; que no responda es en sí un
+indicio de que el objetivo es relativamente moderno o está algo
+hardenizado.
+
+Consecuencia para el siguiente paso: esto hace MENOS probable (aunque
+no descarta del todo) que el objetivo sea vulnerable a MS17-010
+(EternalBlue), ya que esa falla afecta principalmente sistemas viejos
+sin parchar. Aun así, se debe confirmar puntualmente antes de
+descartarla.
+
+===================================================
+2. SIGUIENTE PASO PLANEADO (pendiente de ejecutar)
+===================================================
+
+Comando a ejecutar:
+    nmap --script smb-vuln-ms17-010 -p445 172.20.10.11
+
+Qué hace: prueba puntual y NO destructiva (solo verifica, no explota)
+para determinar si el servicio SMB es vulnerable a MS17-010
+(EternalBlue). Se eligió este script puntual en vez de la categoría
+completa "--script vuln" por ser más rápido, más dirigido al servicio
+ya identificado (445/SMB), y generar menos ruido de red - manteniendo
+el criterio de profundidad sobre amplitud usado en este laboratorio.
+
+Alternativas si el resultado descarta MS17-010:
+    nmap --script smb-protocols -p445 172.20.10.11
+        -> revisa qué versiones de SMB soporta (SMBv1 habilitado o no)
+    nmap --script smb-enum-shares -p445 172.20.10.11
+        -> intenta enumerar recursos compartidos (puede requerir
+           credenciales válidas para dar resultados completos)
+
+===================================================
+3. ESTADO ACTUAL
+===================================================
+
+- Host identificado: 172.20.10.11 (VM VirtualBox)
+- Puerto relevante: 445/tcp (SMB) - abierto
+- SO: no confirmado con certeza; guess de -O apuntaba a Windows 11
+  con 92% de confianza pero marcado como "JUST GUESSING"
+- Vulnerabilidad probada: ninguna confirmada todavía
+- Próximo comando a correr: smb-vuln-ms17-010 (ver sección 2)
+
+===================================================
+FIN - PENDIENTE DE CONTINUAR
+===================================================

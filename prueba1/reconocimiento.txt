@@ -1,0 +1,229 @@
+REPORTE DE RECONOCIMIENTO - LABORATORIO PERSONAL
+===================================================
+Fecha: 2026-09-16
+Autor: edgarpenagarcia2107@gmail.com
+Objetivo: VM propia en VirtualBox (laboratorio de práctica, red local vía hotspot iPhone)
+Herramienta: Nmap 7.99
+Entorno: Host (Kali Linux) escaneando VM Windows sobre red 172.20.10.0/28 (hotspot WiFi)
+
+===================================================
+1. CONFIGURACIÓN DE RED PREVIA
+===================================================
+
+Problema inicial: la VM no tenía acceso a internet al compartir el hotspot
+del iPhone por WiFi hacia el host.
+
+Solución aplicada (VirtualBox):
+- Adaptador 1 -> modo NAT (para dar salida a internet a la VM)
+- Verificación dentro de la VM con: ip a / ip route / ping 8.8.8.8
+
+Resultado: conexión establecida correctamente. La VM y el host quedaron
+en el mismo segmento del hotspot (172.20.10.0/28), permitiendo el
+escaneo directo desde el host hacia la VM.
+
+===================================================
+2. DESCUBRIMIENTO DE HOST (HOST DISCOVERY)
+===================================================
+
+Comando ejecutado:
+    nmap -sn 172.20.10.8/28
+
+¿Qué hace -sn?
+- Es un "ping scan": NO escanea puertos, solo determina qué direcciones IP
+  del rango están activas (vivas) en la red.
+- Usa ARP en redes locales (más rápido y confiable que ICMP).
+
+Resultado obtenido:
+    172.20.10.1   -> Host is up (MAC 36:DA:A1:28:51:64, "Unknown")
+                     Identificado como el gateway (el propio iPhone
+                     haciendo de router del hotspot).
+
+    172.20.10.11  -> Host is up (MAC 08:00:27:56:B1:E3,
+                     "Oracle VirtualBox virtual NIC")
+                     Identificado como la VM objetivo. El prefijo de MAC
+                     08:00:27 es el OUI reservado de Oracle/VirtualBox
+                     para tarjetas de red virtuales, por lo que nmap lo
+                     etiqueta directamente.
+
+    172.20.10.8   -> Host is up (sin MAC reportada)
+                     Es el propio host físico desde donde se lanza el
+                     escaneo (nmap no reporta la MAC de la interfaz local
+                     propia).
+
+Conclusión del paso: el objetivo de las siguientes pruebas es
+172.20.10.11 (la VM).
+
+===================================================
+3. ESCANEO DE PUERTOS + DETECCIÓN DE SERVICIOS Y SO
+===================================================
+
+Comando ejecutado:
+    sudo nmap -sS -sV -O -T4 172.20.10.11
+
+Desglose de cada flag:
+
+- sudo
+  Necesario porque -sS y -O requieren crear paquetes "en crudo" (raw
+  sockets) a nivel de sistema operativo, algo que un usuario sin
+  privilegios no puede hacer.
+
+- -sS (SYN Scan / escaneo sigiloso)
+  Técnica de escaneo de puertos por defecto. Envía un paquete TCP con
+  la bandera SYN a cada puerto (como si quisiera iniciar una conexión):
+    * Responde SYN/ACK -> puerto ABIERTO (nmap no completa el handshake,
+      no envía el ACK final).
+    * Responde RST -> puerto CERRADO.
+    * No responde nada -> puerto FILTRADO (probable firewall).
+  Por defecto revisa los 1000 puertos más comunes (no los 65535; para
+  eso se necesitaría añadir -p-).
+
+- -sV (Version Detection)
+  Para cada puerto que resultó abierto, envía sondas adicionales para
+  identificar qué servicio y qué versión específica está corriendo
+  ahí (ej. no solo "abierto" sino "OpenSSH 8.9p1").
+
+- -O (OS Detection)
+  Analiza particularidades de las respuestas TCP/IP (TTL, tamaño de
+  ventana, orden de flags, opciones TCP, etc.) y las compara contra una
+  base de datos de huellas conocidas para adivinar el sistema operativo.
+  Requiere idealmente al menos 1 puerto abierto y 1 puerto realmente
+  CERRADO (no solo filtrado) para dar un resultado confiable.
+
+- -T4 (Timing template)
+  Plantilla de velocidad "agresiva". Reduce tiempos de espera entre
+  paquetes. Segura de usar en redes locales como esta.
+
+Tiempo de ejecución: 15.65 segundos (rápido por ser red local con
+latencia de ~0.5 ms).
+
+===================================================
+4. RESULTADO OBTENIDO Y ANÁLISIS
+===================================================
+
+Salida completa:
+
+    Not shown: 999 filtered tcp ports (no-response)
+    PORT    STATE SERVICE       VERSION
+    445/tcp open  microsoft-ds?
+    MAC Address: 08:00:27:56:B1:E3 (Oracle VirtualBox virtual NIC)
+    Warning: OSScan results may be unreliable because we could not
+    find at least 1 open and 1 closed port
+    Device type: general purpose
+    Running (JUST GUESSING): Microsoft Windows 11|10|2008 (92%),
+    FreeBSD 6.X (88%)
+    OS CPE: cpe:/o:microsoft:windows_11 cpe:/o:freebsd:freebsd:6.2
+    cpe:/o:microsoft:windows_10
+    cpe:/o:microsoft:windows_server_2008::beta3
+    cpe:/o:microsoft:windows_server_2008
+    Aggressive OS guesses: Microsoft Windows 11 24H2 (92%),
+    Microsoft Windows 11 21H2 (91%), FreeBSD 6.2-RELEASE (88%),
+    Microsoft Windows 10 (86%), Microsoft Windows Server 2008 or 2008
+    Beta 3 (85%), Microsoft Windows 10 1607 (85%)
+    No exact OS matches for host (test conditions non-ideal).
+    Network Distance: 1 hop
+
+Interpretación paso a paso:
+
+a) "Not shown: 999 filtered tcp ports (no-response)"
+   De los 1000 puertos comunes escaneados, 999 no respondieron nada.
+   Esto normalmente indica un firewall en la VM descartando los
+   paquetes en silencio (drop), en vez de rechazarlos activamente.
+
+b) "445/tcp open microsoft-ds?"
+   El puerto 445 corresponde al protocolo SMB (Server Message Block),
+   usado por Windows para compartir archivos e impresoras en red. Es
+   un puerto característico de máquinas Windows. El símbolo "?" indica
+   que nmap no logró confirmar al 100% la versión exacta del servicio
+   con las sondas de -sV.
+
+c) Warning de OS detection poco confiable
+   Al tener solo 1 puerto abierto y 999 FILTRADOS (no CERRADOS de
+   verdad, es decir, sin respuesta RST), a nmap le falta el punto de
+   comparación que necesita para un fingerprint confiable. Por eso el
+   resultado es una aproximación débil, no una detección certera.
+
+d) "Aggressive OS guesses" y "JUST GUESSING"
+   Los porcentajes (92%, 88%, etc.) son nivel de confianza de cada
+   posible coincidencia, no certeza. La propia leyenda "JUST GUESSING"
+   y "No exact OS matches" advierten que no debe tomarse como un hecho
+   confirmado. Lo que sí es un dato sólido, independientemente del
+   guess de -O, es que el objetivo es Windows, dado que el puerto SMB
+   (445) está abierto.
+
+e) "Network Distance: 1 hop"
+   Confirma que la VM está en la misma red local que el host, sin
+   routers intermedios de por medio (coincide con estar en el mismo
+   segmento del hotspot).
+
+===================================================
+4.1 ACLARACIÓN: ¿POR QUÉ CERRAMOS AQUÍ EL RECONOCIMIENTO?
+===================================================
+
+Es importante entender que encontrar UN puerto abierto NO es, por
+regla general, una condición de "fin de reconocimiento". La lógica
+correcta es la siguiente:
+
+¿Por qué en un pentest real normalmente SE DEBERÍA seguir escaneando
+aunque ya haya un puerto abierto?
+- Cada puerto abierto es una posible vía de entrada distinta. Un solo
+  puerto (445/SMB en este caso) no representa toda la superficie de
+  ataque de la máquina.
+- El escaneo top-1000 (el que usamos, por defecto en nmap) NO cubre
+  todo el rango de puertos (1-65535), solo los 1000 más comunes. Puede
+  haber servicios corriendo en puertos poco habituales que este
+  escaneo no detectó.
+- Tampoco cubrimos UDP (-sU): protocolos como DNS, DHCP o SNMP corren
+  ahí y quedaron completamente fuera de este análisis.
+- Mientras más puertos/servicios se identifiquen, más completo es el
+  mapa de la máquina antes de pasar a explotación.
+
+Regla general (no aplicada estrictamente aquí, ver más abajo):
+  Si el escaneo top-1000 NO hubiera arrojado ningún puerto abierto,
+  el paso obligatorio siguiente habría sido escanear TODOS los
+  puertos:
+      sudo nmap -sS -p- -T4 172.20.10.11
+  (equivalente a -p 1-65535, mucho más lento pero exhaustivo)
+
+¿Por qué en ESTE caso concreto SÍ decidimos detenernos aquí?
+- Es un laboratorio de aprendizaje, no un pentest de alcance definido
+  por un cliente/objetivo formal, así que no hay presión de cobertura
+  total.
+- Ya se cumplió el objetivo pedagógico de esta prueba: identificar un
+  host vivo, un puerto abierto, un servicio (SMB) y obtener un indicio
+  fuerte del sistema operativo (Windows).
+- El puerto encontrado (445/SMB) es además uno de los más relevantes
+  y ricos en información/técnicas de enumeración y explotación
+  histórica en entornos Windows, por lo que tiene más sentido
+  profundizar en ÉL (enumeración de SMB, versión exacta de SO, etc.)
+  que seguir buscando más puertos en un laboratorio controlado de un
+  solo objetivo conocido.
+- Decisión pedagógica, no técnica: se prioriza profundidad
+  (enumeración de un servicio) sobre amplitud (cobertura de puertos)
+  para esta sesión.
+
+Conclusión: el reconocimiento "se puede" cerrar aquí por decisión de
+alcance del laboratorio, NO porque técnicamente ya no hubiera nada más
+que buscar. En un ejercicio más completo, el camino correcto sería
+seguir con -p- y -sU antes de dar por cerrada esta fase.
+
+===================================================
+5. SIGUIENTE PASO PROPUESTO (aún no ejecutado)
+===================================================
+
+Para obtener la versión exacta del sistema operativo Windows sin
+depender del guess genérico de -O, se propuso consultar directamente
+al servicio SMB, que suele revelar el nombre exacto del SO:
+
+    nmap --script smb-os-discovery -p445 172.20.10.11
+
+Este script NSE (Nmap Scripting Engine) interroga al protocolo SMB
+directamente y normalmente devuelve el build exacto de Windows, mucho
+más confiable que el fingerprint TCP/IP genérico cuando solo hay un
+puerto disponible para analizar.
+
+Pendiente para la próxima sesión: ejecutar este comando y continuar
+el reconocimiento.
+
+===================================================
+FIN DEL REPORTE - PARTE 1 (RECONOCIMIENTO)
+===================================================
