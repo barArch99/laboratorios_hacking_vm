@@ -1,0 +1,100 @@
+BITÁCORA DE SESIÓN - LABORATORIO DE HACKING EN VM PROPIA (PRUEBA 2)
+===================================================
+Fecha: 2026-09-28
+Autor: edgarpenagarcia2107@gmail.com
+Equipo atacante: BlackArch (host "blackarch"), usuario normal ecorp, 192.168.1.20/24 (cable enp8s0)
+Objetivo: VM propia de VirtualBox con Windows, red local de casa (laboratorio autorizado)
+
+Propósito: resumen de la PRÁCTICA de reconocimiento hecha hoy (solo el
+ejercicio, no toda la conversación). Formato tipo laboratorio (TryHackMe):
+se plantean tareas/preguntas, el usuario ejecuta y responde, y se valida.
+
+===================================================
+CONFIGURACIÓN DE RED PREVIA
+===================================================
+- La VM estaba en modo NAT (red interna de VirtualBox 10.0.2.x), por lo que
+  NO aparecía al escanear la red de casa.
+- Se cambió el Adaptador 1 de la VM a "Bridged Adapter" sobre enp8s0, para
+  que la VM quede como un equipo más de la LAN 192.168.1.0/24.
+- El usuario indica que además desactivó el firewall de Windows en la VM
+  (queda como punto a verificar, ver bitácora de la Fase 2).
+
+===================================================
+FASE 1 - DESCUBRIMIENTO DE HOSTS
+===================================================
+Objetivo pedagógico: encontrar la VM en la red sin conocer su IP, solo desde
+el equipo atacante (como haría un pentester).
+
+Resultados del usuario (validados):
+- Hosts activos en la red: 5 (incluye el propio equipo .20).
+- IP de la VM: 192.168.1.22
+- MAC de la VM: 08:00:27:EE:D0:DD  -> "Oracle VirtualBox virtual NIC"
+  (el prefijo 08:00:27 es el OUI de Oracle/VirtualBox).
+- Protocolo usado por el descubrimiento: ARP.
+- Verificación cruzada: dentro de Windows la IP coincide (192.168.1.22).
+
+Correcciones/aprendizajes de la Fase 1:
+- "-sn" NO es un comando, es una OPCIÓN de nmap ("solo descubrimiento de
+  hosts, sin escanear puertos").
+- ARP no se usa "por ser cable"; funciona igual por Wi-Fi. Se usa porque la
+  VM está en la MISMA red local (misma subred /24). En LAN, nmap (como root)
+  prefiere ARP porque es más rápido, más fiable (ningún equipo puede ignorar
+  ARP aunque tenga firewall) y además revela la MAC y el fabricante.
+- Fuera de la LAN, ARP no sirve (solo funciona dentro del segmento local);
+  ahí se usaría ICMP/TCP.
+
+Verificado también desde el equipo atacante: la caché ARP (ip neigh) muestra
+192.168.1.22 -> 08:00:27:ee:d0:dd, estado REACHABLE.
+
+===================================================
+FASE 2 - ¿ESTÁ VIVA? (ICMP)  [EN CURSO]
+===================================================
+Objetivo pedagógico: confirmar el host por capa de red (ICMP), no solo por
+ARP, y observar la contradicción "sin firewall pero no responde al ping".
+
+Resultados del usuario (validados hasta donde se avanzó):
+- Tarea 2.1: la VM NO responde al ping normal.
+- Tarea 2.2: como no hay respuesta, no hay TTL. Las dos causas posibles de
+  un silencio al ping son:
+     1) el host está apagado / no existe.
+     2) un firewall bloquea el ping (ICMP).
+  El usuario descarta correctamente la causa 1: si ARP respondió en la
+  Fase 1, el host está encendido y conectado (un host apagado no contesta
+  ARP). Por eliminación, algo está bloqueando el ICMP.
+
+Contradicción a resolver (queda pendiente): el usuario dice haber quitado el
+firewall de Windows, pero el ping sigue bloqueado. Hipótesis principal:
+Windows aplica el firewall POR PERFIL de red (Dominio / Privada / Pública) y
+probablemente sigue activo en el perfil que la VM está usando ahora; además,
+el bloqueo de "Echo Request" entrante es una regla propia que puede seguir
+activa aunque el firewall parezca desactivado.
+
+Tareas de la Fase 2 que quedaron SIN completar (se retoman en el guion):
+- 2.3: descubrir la VM con nmap usando SOLO ICMP y prohibiendo ARP
+       (¿"Host is up" o "Host seems down"?).
+- 2.4: comparar Fase 1 (ARP) vs Fase 2 (ICMP) y explicar por qué difieren.
+- 2.5 (bonus): capturar con tcpdump el ping (cuántos echo request salen y
+       cuántos echo reply vuelven).
+- 2.6: entrar a la VM y verificar el firewall EN CADA PERFIL de red; decir
+       qué perfil usa la VM y si el firewall está activado o desactivado ahí.
+
+===================================================
+CONCEPTOS DE HOY APLICADOS EN ESTA PRÁCTICA
+===================================================
+- Descubrimiento de hosts con ARP vs ICMP (Tema 5).
+- Lectura de MAC/OUI para identificar un fabricante (Segunda Clase).
+- TTL como pista del sistema operativo (Segunda Clase).
+- Idea de "seems down": el silencio no distingue apagado de firewall (Tema 5).
+- Herramientas de apoyo previstas para las próximas fases: tcpdump (capturar
+  el escaneo por dentro) y los scripts propios escaneo.sh / escaneo.py
+  (repo Pruebas, Prueba_01) para automatizar.
+
+===================================================
+METODOLOGÍA ACORDADA
+===================================================
+- Estilo TryHackMe: se plantean tareas y preguntas; el usuario ejecuta los
+  comandos y responde. Claude NO da los comandos salvo pista pedida.
+- Solo laboratorio autorizado (VM propia). Al terminar, se recomienda volver
+  a activar el firewall de Windows en la VM.
+
+FIN DE LA BITÁCORA (PRUEBA 2)

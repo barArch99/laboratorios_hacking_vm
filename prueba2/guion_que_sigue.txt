@@ -1,0 +1,110 @@
+GUION - QUÉ SIGUE EN LA PRUEBA 2 (LABORATORIO VM PROPIA)
+===================================================
+Fecha de creación: 2026-09-28
+Autor: edgarpenagarcia2107@gmail.com
+Objetivo: VM propia Windows, 192.168.1.22, en la LAN de casa (192.168.1.0/24)
+Atacante: BlackArch, 192.168.1.20
+
+Este archivo es la HOJA DE RUTA para retomar la práctica. Formato TryHackMe:
+son tareas y preguntas para que el usuario resuelva; NO trae los comandos
+(se piden como "pista" si hace falta). Se avanza una fase por sesión.
+
+===================================================
+DÓNDE QUEDAMOS
+===================================================
+- Fase 1 (Descubrimiento): COMPLETA. VM = 192.168.1.22, MAC 08:00:27:EE:D0:DD.
+- Fase 2 (¿Está viva? / ICMP): EN CURSO. El ping no responde aunque el host
+  está vivo (ARP sí respondió). Falta resolver la contradicción del firewall.
+
+===================================================
+FASE 2 - CERRAR (pendiente)
+===================================================
+[ ] 2.3  Descubrir la VM con nmap usando SOLO ICMP Echo y prohibiendo ARP.
+         Pregunta: ¿"Host is up" o "Host seems down"?
+[ ] 2.4  Comparar Fase 1 (ARP -> up) con Fase 2 (ICMP). ¿Coinciden?
+         Explicar por qué un mismo host puede aparecer "up" por ARP y
+         "down" por ICMP.
+[ ] 2.5  (bonus) Capturar el ping con tcpdump en enp8s0 filtrando icmp.
+         Pregunta: ¿cuántos echo request salen y cuántos echo reply vuelven?
+[ ] 2.6  Dentro de la VM: revisar el firewall de Windows POR PERFIL
+         (Dominio / Privada / Pública). Preguntas: ¿qué perfil usa la VM?
+         ¿el firewall está activado o desactivado en ese perfil?
+[ ] 2.7  Truco de pentester: repetir el descubrimiento pero diciéndole a
+         nmap que NO haga ping y asuma el host vivo (opción -Pn). Pregunta:
+         ¿por qué -Pn es la respuesta correcta cuando un firewall bloquea
+         ICMP pero el host sí existe?
+
+===================================================
+FASE 3 - ESCANEO DE PUERTOS
+===================================================
+[ ] 3.1  Escanear los puertos más comunes de la VM (recordar usar -Pn si el
+         ping sigue bloqueado, para que nmap no la dé por caída).
+         Preguntas: ¿cuántos puertos abiertos? ¿cuáles?
+[ ] 3.2  Para cada puerto abierto, decir su estado (open/closed/filtered) y
+         qué significa cada estado (repaso Tema 4/Tema 5).
+[ ] 3.3  Escanear TODOS los puertos TCP (no solo los 1000 comunes) y comparar:
+         ¿aparece algo que el escaneo común no mostró?
+[ ] 3.4  (concepto) ¿Por qué un escaneo UDP sería más lento y ambiguo aquí?
+         (repaso: UDP cerrado = ICMP port unreachable; sin respuesta =
+         open|filtered).
+
+===================================================
+FASE 4 - SERVICIOS Y SISTEMA OPERATIVO
+===================================================
+[ ] 4.1  Detectar la VERSIÓN de los servicios de los puertos abiertos (-sV).
+         Pregunta: ¿qué servicio y versión corre en cada puerto?
+[ ] 4.2  Intentar detectar el SISTEMA OPERATIVO por fingerprint (-O).
+         Nota: la detección de SO necesita al menos un puerto realmente
+         CERRADO como referencia; si sale un "guess", entender por qué.
+[ ] 4.3  Contrastar el TTL observado en la Fase 2 con el SO detectado aquí.
+         ¿Concuerdan?
+
+===================================================
+FASE 5 - VER EL ESCANEO POR DENTRO (tcpdump)
+===================================================
+[ ] 5.1  Repetir un escaneo de un puerto concreto mientras se captura con
+         tcpdump en enp8s0, filtrando por la IP de la VM.
+[ ] 5.2  Identificar en la captura: la sonda que envía nmap (SYN) y la
+         respuesta (SYN-ACK si abierto / RST si cerrado / silencio si
+         filtrado). Relacionarlo con el estado que reportó nmap.
+
+===================================================
+FASE 6 - AUTOMATIZAR CON SCRIPTS PROPIOS
+===================================================
+Base: los scripts del repo Pruebas (Prueba_01): escaneo.sh y escaneo.py.
+[ ] 6.1  Mejorar escaneo.sh para que reciba la IP objetivo como ARGUMENTO
+         ($1) en vez de tenerla fija, y para que use -Pn contra la VM.
+[ ] 6.2  Hacer que escaneo.sh GUARDE el resultado en un archivo (-oN).
+[ ] 6.3  Mejorar escaneo.py con un BUCLE for para revisar VARIOS puertos de
+         una lista, no solo uno (este era el "siguiente paso" del Tema 6:
+         loops). Pregunta: ¿qué puertos de la VM detecta como abiertos?
+[ ] 6.4  Comparar la salida del script propio con la de nmap: ¿coinciden?
+
+===================================================
+FASE 7 - IDENTIFICACIÓN DE VULNERABILIDADES (solo si se decide)
+===================================================
+[ ] 7.1  Según los servicios encontrados, discutir (sin ejecutar sin decisión
+         explícita) qué scripts NSE de categoría "safe/default" tendrían
+         sentido para enumerar ese servicio.
+[ ] 7.2  Mantener separada esta fase de cualquier fase de explotación, que
+         NO se aborda aquí.
+
+===================================================
+REGLAS DEL LABORATORIO
+===================================================
+- Solo la VM propia (laboratorio autorizado). Nada fuera de la red de casa.
+- Estilo TryHackMe: Claude plantea tareas/preguntas; el usuario ejecuta y
+  responde; Claude valida, corrige y explica el porqué. Comandos solo como
+  pista si se piden.
+- Al terminar la sesión de laboratorio, volver a activar el firewall de
+  Windows en la VM.
+
+===================================================
+PARA RETOMAR
+===================================================
+Empezar por la tarea 2.3 y seguir el orden. Cerrar Fase 2, luego Fase 3.
+Archivos de contexto en esta carpeta (prueba2):
+  - bitacora_sesion.txt  -> lo que ya se hizo hoy.
+  - guion_que_sigue.txt  -> este archivo (hoja de ruta).
+
+FIN DEL GUION (PRUEBA 2)
