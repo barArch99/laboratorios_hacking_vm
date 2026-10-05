@@ -1,6 +1,16 @@
 ===============================================================================
  GUION QUE SIGUE - PRUEBA 3 (retomar aqui)
 ===============================================================================
+*** RESUELTO el 2026-10-05: sesion Meterpreter conseguida y FLAG leida. ***
+La solucion NO fue Host-Only sino: (1) bajar el wifi del host para quitar el doble
+IP (quedo en bridged con LHOST 192.168.1.20), (2) abrir el firewall nftables propio
+para la VM (reglas insert a 4444/8000 por enp8s0), (3) apagar Defender tiempo real.
+Detalle completo en bitacora_sesion.txt (seccion CONTINUACION 2026-10-05).
+El plan Host-Only de abajo quedo como alternativa documentada (no se uso: el
+Adapter 2 no aparecia en Windows por usar tipo "Intel PRO/1000 T Server" sin driver
+en Win11; se habria arreglado cambiandolo a "Intel PRO/1000 MT Desktop").
+-------------------------------------------------------------------------------
+
 OBJETIVO PENDIENTE: conseguir la sesion Meterpreter y leer la flag en la VM Windows.
 BLOQUEO ACTUAL   : el retorno TCP VM->host no llega en modo BRIDGED porque el host
                    tiene dos IPs en la misma subred (192.168.1.20 cable + .19 wifi).
