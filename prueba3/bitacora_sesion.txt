@@ -263,4 +263,38 @@ LECCION (la mas importante del dia):
     - y usar esto contra terceros sin permiso es delito grave de privacidad.
   Se aprende el ataque para saber DEFENDERSE.
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+ ANEXO - COMO DEFENDERSE DE ESTE ATAQUE (defensa por capas)
+-------------------------------------------------------------------------------
+Cada defensa rompe un eslabon de la misma cadena que se hizo hoy. Rompiendo
+CUALQUIERA de los 3 pasos clave (ejecutar / AV / red de vuelta) el ataque falla.
+
+1) ENTREGA / EJECUCION del payload (el eslabon mas debil):
+   - NUNCA ejecutar .exe de origen no confiable (correo, descargas, cracks, links).
+   - Desconfiar de doble extension (factura.pdf.exe) y activar "ver extensiones".
+   - Mantener SmartScreen activo.
+
+2) ANTIVIRUS:
+   - Defender con Proteccion en tiempo real SIEMPRE ON (borro el raw al instante).
+   - Tamper Protection activada (evita que lo apaguen por comando).
+   - Mejor aun: EDR con deteccion por comportamiento, no solo firmas.
+
+3) LA CONEXION DE VUELTA (reverse shell):
+   - El reverse_tcp funciona porque la SALIDA casi nunca se filtra -> filtrar
+     egress (controlar que puede salir) es muy efectivo.
+   - Deteccion: netstat -ano en Windows para ver conexiones salientes raras
+     (ej. hacia :4444). Revisar procesos con red en el Administrador de tareas.
+
+4) POST-EXPLOTACION:
+   - No usar cuenta Administrador a diario (menos privilegios = menos dano).
+   - Tapar la webcam fisicamente (invencible).
+   - Revisar inicio automatico / tareas programadas (persistencia del malware).
+
+5) HIGIENE GENERAL:
+   - Actualizar Windows y apps; backups; contrasenas fuertes + 2FA; anti-phishing.
+
+IDEA DE FONDO: defense in depth. El ataque necesito alinear 3 cosas (ejecutar el
+archivo + AV apagado + red permitiendo el retorno). Romper una sola ya lo detiene.
+-------------------------------------------------------------------------------
 ===============================================================================
