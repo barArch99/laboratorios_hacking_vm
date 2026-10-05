@@ -232,3 +232,35 @@ NOTAS / APRENDIZAJES NUEVOS:
 
 RESULTADO: COMPLETADO. Toda la cadena ofensiva + sesion + lectura de flag.
 ===============================================================================
+
+-------------------------------------------------------------------------------
+ ANEXO - POST-EXPLOTACION: CAMARA Y MICROFONO (demo sobre mi propio equipo)
+-------------------------------------------------------------------------------
+Exploracion de lo que permite una sesion Meterpreter mas alla de archivos. Hecho
+sobre mi propia webcam / mi propia cara / mi propio lab, con fin educativo.
+
+Comandos (grupo Stdapi Webcam/Audio):
+  webcam_list       -> enumera las camaras de la victima (indice 1,2,...)
+  webcam_snap -i 1  -> toma UNA foto con la webcam y la trae al atacante (.jpeg)
+  webcam_stream -i1 -> "video en vivo" (fotos rapidas encadenadas en el navegador)
+  record_mic        -> graba audio del microfono X segundos (.wav)
+  webcam_chat       -> intento de videochat
+
+Detalle del lab:
+  - La VM Windows NO tenia camara (webcam_list salia vacio) -> es hardware virtual.
+  - Para la demo se le "presto" la webcam del host por passthrough USB:
+        VirtualBox: menu Devices -> Webcams -> [camara del host]
+    Tras conectarla, Windows la ve como camara USB y webcam_list ya la lista.
+  - webcam_snap -i 1 disparo la camara y trajo la imagen al BlackArch.
+
+LECCION (la mas importante del dia):
+  Una maquina comprometida = control TOTAL: camara, microfono, pantalla
+  (screenshot), teclas (keyscan_start), archivos... todo, sin que el usuario se de
+  cuenta (la webcam a veces ni enciende el LED). Por eso:
+    - antivirus SIEMPRE activo (Defender borro el payload raw al instante),
+    - NUNCA ejecutar .exe de origen no confiable,
+    - tapar la webcam no es paranoia,
+    - y usar esto contra terceros sin permiso es delito grave de privacidad.
+  Se aprende el ataque para saber DEFENDERSE.
+-------------------------------------------------------------------------------
+===============================================================================
