@@ -1,0 +1,36 @@
+===============================================================================
+ RUTA DE ESTUDIO - TEMAS PROXIMOS
+===============================================================================
+Creado     : 2026-10-09
+Origen     : despues de la prueba3 (msfvenom + Meterpreter) surgio la pregunta
+             "por que trampa.exe se ve como basura con cat?". La respuesta
+             completa necesita temas que aun no he estudiado. Este es el orden.
+
+Regla: un paso a la vez. No saltar al siguiente sin poder hacer los
+"Sabre que lo tengo" del anterior.
+-------------------------------------------------------------------------------
+
+[x] 1. LINUX Y TERMINAL
+       BlackArch, comandos basicos, permisos, archivos.
+
+[~] 2. REDES Y RECONOCIMIENTO        <- ESTOY AQUI
+       Curso de Nmap (repo Nmap), HTB Starting Point (repo Hack-the-box),
+       laboratorios en VMs (este repo: prueba1, prueba2, prueba3).
+
+[ ] 2b. PYTHON BASICO
+       Variables, if, bucles, funciones, leer archivos, sockets sencillos.
+       Objetivo: poder leer y escribir scripts cortos para mis labs.
+
+[ ] 3. COMO FUNCIONA UN PROGRAMA POR DENTRO (+ un poco de C)
+       Memoria, CPU, que pasa cuando hago doble clic en un .exe.
+
+[ ] 4. ENSAMBLADOR x86-64
+       Leer instrucciones como "fc 48 83 e4 f0" = cld / and rsp...
+
+[ ] 5. INGENIERIA INVERSA Y ANALISIS DE MALWARE
+       Ghidra, analisis estatico y dinamico. Proyecto final: analizar
+       mi propio trampa.exe de la prueba3.
+
+-------------------------------------------------------------------------------
+Leyenda: [x] hecho   [~] en curso   [ ] pendiente
+===============================================================================
