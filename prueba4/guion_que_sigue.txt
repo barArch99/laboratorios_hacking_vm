@@ -1,0 +1,106 @@
+===============================================================================
+ PRUEBA 4 - GUION (tareas por fases). Estilo profesor: yo planteo, tu ejecutas.
+ Yo NO doy los comandos hechos; te doy el objetivo y pistas. Tu me mandas
+ salidas / IP / MAC / capturas y yo corrijo.
+===============================================================================
+
+IDEA CENTRAL (para que no se pierda el sentido educativo)
+---------------------------------------------------------
+En prueba3 lanzaste un payload CRUDO y Defender lo borraba: tuviste que apagar la
+proteccion en tiempo real para que funcionara. Eso es justo la leccion: un payload
+"a pelo" tiene una firma conocida y cualquier AV lo caza.
+
+En prueba4 el objetivo NO es "hacer un virus indetectable". El objetivo es ENTENDER
+el espectro: payload crudo -> payload con encoder -> payload metido en un .exe
+legitimo (template), y COMPROBAR con Defender ENCENDIDO que pasa en cada caso.
+La mayoria seguiran cayendo: eso es el aprendizaje defensivo (por que caen y que
+rastro dejan). Documentamos deteccion, no evasion.
+
+===============================================================================
+ FASE 1 - ESCANEO Y ENUMERACION (empezamos aqui)
+===============================================================================
+Objetivo: redescubrir la VM Windows desde BlackArch y sacar su huella de red.
+
+TAREA 1.1 - Descubrir la VM en la red
+  - Confirma primero tu propia IP/interfaz (cable vs wifi) para no repetir el lio
+    de doble IP de prueba3.
+  - Haz un barrido de la /24 para ver que hosts estan vivos.
+  - PREGUNTA que me respondes: que IP tiene la Windows y que MAC le sale
+    (la MAC suele delatar que es VirtualBox: empieza por 08:00:27).
+
+TAREA 1.2 - Escaneo de puertos y servicios
+  - Escanea los puertos de la VM Windows. Fijate en los tipicos de Windows.
+  - PREGUNTA: que puertos salen abiertos y que servicio/version reporta cada uno?
+  - PISTA: anota si ves 135/139/445 (SMB), 3389 (RDP), 5985 (WinRM). Nos sirve
+    para decidir que puerto "vulnerable" abrimos en la fase 2.
+
+TAREA 1.3 - Deteccion de SO
+  - Pide a nmap que adivine el sistema operativo y version.
+  - PREGUNTA: acierta que es Windows 11? que confianza da?
+
+  >>> Cuando tengas 1.1-1.3, me mandas las salidas (o capturas) y lo anotamos en
+      la bitacora. No sigas a fase 2 hasta cerrar esto.
+
+===============================================================================
+ FASE 2 - ABRIR UN PUERTO "VULNERABLE" Y PLANTAR LA FLAG (en la Windows)
+===============================================================================
+Objetivo: dejar la VM en un estado tipo reto HTB, hecho por ti.
+
+TAREA 2.1 - Crear la flag
+  - En la Windows, crea C:\...\flag.txt con contenido formato HTB{...}.
+  - Elige tu el texto de la flag (algo unico).
+
+TAREA 2.2 - Elegir y abrir el "puerto vulnerable"
+  - Segun lo que salio en fase 1, decidimos juntos que servicio/puerto dejamos
+    expuesto como via de entrada (lo razonamos antes de abrir nada).
+  - Abrir la regla de firewall correspondiente SOLO para la IP de BlackArch.
+
+  >>> Me confirmas puerto elegido y que la flag ya existe. Paramos y revisamos.
+
+===============================================================================
+ FASE 3 - PAYLOAD CRUDO vs PAYLOAD PREPARADO (el nucleo de la prueba)
+===============================================================================
+Objetivo: comparar deteccion. Defender ENCENDIDO todo el tiempo salvo que yo diga.
+
+TAREA 3.1 - Linea base: payload crudo (como prueba3)
+  - Genera el payload meterpreter basico, formato .exe.
+  - Copialo a la Windows con Defender ENCENDIDO.
+  - PREGUNTA: lo borra? cuanto tarda? que nombre de amenaza le pone Defender?
+    (eso ultimo es oro: es la firma que lo delata).
+
+TAREA 3.2 - Mismo payload, con encoder
+  - Regenera el mismo payload pero pasandolo por un encoder (p.ej. shikata_ga_nai)
+    con varias iteraciones.
+  - PREGUNTA: cambia algo? Defender lo sigue cazando? (spoiler probable: si).
+  - LECCION a anotar: un encoder NO es cifrado ni "hace invisible"; solo reescribe
+    los bytes; el AV moderno no mira solo firmas estaticas.
+
+TAREA 3.3 - Payload metido en un .exe legitimo (template)
+  - Usa un ejecutable normal e inofensivo como plantilla y mete el payload dentro.
+  - PREGUNTA: Defender lo deja pasar? se ejecuta el programa normal Y el payload?
+  - LECCION: por que esta tecnica a veces supera firmas estaticas pero suele caer
+    por comportamiento (conexion saliente, inyeccion) -> aqui entra el EDR.
+
+TAREA 3.4 - Lado defensor (lo mas importante)
+  - Con la tecnica que SI haya logrado conexion, mira en la Windows:
+    * Historial de proteccion de Defender (que detecto y que no).
+    * Visor de eventos: Defender Operational y Sysmon si lo tienes.
+  - PREGUNTA: que evento/rastro deja la conexion de meterpreter? como lo veria
+    un defensor? -> este es el verdadero entregable de la prueba.
+
+===============================================================================
+ FASE 4 - RECUPERAR LA FLAG Y CERRAR
+===============================================================================
+  - Con la sesion lograda, navega y lee la flag.txt que creaste.
+  - Vuelve a ENCENDER toda la proteccion, cierra la regla de firewall temporal,
+    borra el payload de la VM.
+  - Anota en bitacora: que tecnica fue detectada, cual no, y la leccion defensiva.
+
+-------------------------------------------------------------------------------
+RECORDATORIOS
+-------------------------------------------------------------------------------
+- Todo sobre maquinas PROPIAS y aisladas. Nada sale del laboratorio.
+- El entregable de valor es la parte defensiva (que detecta Defender y que rastro
+  deja), no un payload indetectable.
+- Me mandas IP/MAC/puertos/capturas y yo corrijo paso a paso.
+===============================================================================

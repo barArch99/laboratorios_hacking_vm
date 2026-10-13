@@ -1,0 +1,80 @@
+===============================================================================
+ PRUEBA 4 - AUDITORIA DE VM WINDOWS PROPIA: DE PAYLOAD CRUDO A PAYLOAD PREPARADO
+ (enfoque: entender DETECCION - por que Defender caza un payload y que cambia)
+===============================================================================
+Fecha de la sesion : 2026-10-12 (en curso)
+Documentado        : 2026-10-12
+Continuacion de    : prueba3 (misma VM Windows propia, sesion meterpreter lograda)
+Tema               : escaneo/enumeracion -> apertura de puerto -> payload crudo vs
+                     payload preparado -> deteccion por Defender -> recuperar flag
+Marco              : laboratorio controlado, TODAS las maquinas son PROPIAS y aisladas.
+                     Solo se practica sobre equipos propios. Fin 100% educativo:
+                     el objetivo real es aprender DEFENSA (que detecta Defender y por que).
+
+-------------------------------------------------------------------------------
+0. ESCENARIO (quien es quien)  -- rellenar con lo que me mandes
+-------------------------------------------------------------------------------
+Atacante (host) : BlackArch
+                  - enp8s0 (cable) -> 192.168.1.__   (LHOST)
+                  - wlp9s0 (wifi)  -> 192.168.1.__
+Victima (VM)    : Windows 11
+                  - IP  192.168.1.21     (DHCP le cambio de .22 -> .21 vs prueba3)
+                  - MAC 08:00:27:EE:D0:DD (Oracle VirtualBox virtual NIC)
+                  - Adaptador: Bridged sobre enp8s0 (confirmado: la MAC salio en
+                    la red del cable, NO en vboxnet0/192.168.56.x)
+Red             : 192.168.1.0/24
+Flag objetivo   : la creas tu (fase 2), formato HTB: HTB{...} en C:\...\flag.txt
+
+-------------------------------------------------------------------------------
+NOTAS DE LA SESION  -- se va rellenando
+-------------------------------------------------------------------------------
+FASE 1 - ESCANEO
+  nmap -sn 192.168.1.0/24  -> VM encontrada en .21 (MAC 08:00:27:EE:D0:DD, VBox)
+  nmap -p- -sV -T4 192.168.1.21  (6 min) -> puertos abiertos:
+    135  msrpc        (RPC endpoint mapper)
+    139  netbios-ssn  (SMB legado sobre NetBIOS)
+    445  microsoft-ds (SMB)  <== superficie real de ataque
+    5040 CDPSvc       (normal Win10/11)
+    7680 Delivery Optimization / WUDO (normal)
+    49664-49677  puertos RPC dinamicos (efimeros, internos)
+  Observaciones:
+    - NO hay 3389 (RDP) ni 5985 (WinRM): servicios no activados.
+    - "65523 closed (reset)" NO "filtered" -> firewall permisivo/apagado en esta red.
+    - Perfil = Windows 11 de fabrica.
+
+  Enumeracion SMB (NSE):
+    nmap -p445 --script smb-protocols 192.168.1.21
+    -> dialects: 2.0.2, 2.1, 3.0, 3.0.2, 3.1.1 (max 3.1.1, el moderno de Win11)
+    -> NO hay SMBv1 => EternalBlue (CVE-2017-0144, CVSS 9.3) NO aplica.
+    LECCION: no se asume por el puerto, se verifica la version. Camino cerrado
+             confirmado en 0.6s en vez de perder horas con un exploit inutil.
+
+DECISION (2026-10-12): VM bien protegida (SMB moderno, sin RDP/WinRM). Se descarta
+buscar agujero existente. Camino elegido = B (payload entregable con msfvenom:
+crudo vs camuflado + deteccion Defender). El camino A (montar servicio vulnerable
+en un puerto y explotarlo) queda apuntado para una futura prueba5.
+
+FASE 2 - PREPARAR EL RETO
+  - Flag creada en Escritorio de la VM (nombre sin espacios, formato HTB{...}).
+  - Canal elegido: listener en 443 (en vez de 4444). Leccion: 4444 es el default
+    de Metasploit y DELATA; 443 (HTTPS) se mezcla con el trafico normal = camuflaje
+    de canal. nftables NO da trato especial al 443: solo mira sus reglas.
+  - Firewall BlackArch (nft list ruleset): policy drop; la conexion REVERSA de la
+    VM (NUEVA, entra por enp8s0) no encaja en established/related ni en tun0+htb
+    => seria RECHAZADA. Hay que meter regla temporal insert para 192.168.1.21:443.
+  - PENDIENTE CIERRE (Fase 4): quitar la regla insert (reboot/reload nftables, o
+    nft delete rule con su handle via 'nft -a list ruleset'). insert NO persiste a
+    reinicio, pero se quita a mano por higiene.
+  - Regla aplicada y verificada: aparece la 1a de la cadena input, antes del reject:
+      ip saddr 192.168.1.21 tcp dport 443 accept   -> canal 443 ABIERTO para la VM.
+
+PAUSA (2026-10-12, noche): se deja la prueba aqui por hoy.
+  RETOMAR EN: Tarea 1 -> verificar si la regla nft temporal sigue (nft list ruleset /
+  nft -a list ruleset). Si se reinicio el host o se recargo nftables, la regla
+  'ip saddr 192.168.1.21 tcp dport 443 accept' se perdio -> volver a insertarla.
+  Comprobar tambien que la VM sigue en 192.168.1.21 (DHCP puede cambiarla).
+  Despues -> FASE 3 (payload crudo, Tarea 3.1 del guion).
+
+(aqui anotas IPs, puertos abiertos, que detecto Defender, resultados)
+
+===============================================================================

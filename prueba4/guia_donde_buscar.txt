@@ -1,0 +1,78 @@
+===============================================================================
+ GUIA: DONDE BUSCAR Y COMO INTERPRETAR (puertos, versiones, CVEs)
+ Chuleta de referencia para la prueba4 y las siguientes.
+===============================================================================
+
+-------------------------------------------------------------------------------
+1. PARA BUSCAR QUE ES UN PUERTO / SERVICIO
+-------------------------------------------------------------------------------
+- SpeedGuide Ports DB : https://www.speedguide.net/ports.php
+    Escribes el numero (ej: 445) y te dice que servicios lo usan y riesgos.
+- IANA (oficial)      : https://www.iana.org/assignments/service-names-port-numbers/
+    El registro OFICIAL de que puerto corresponde a que servicio.
+- Wikipedia lista     : "List of TCP and UDP port numbers" (rapido para ojear).
+- Como interpretarlo  : un puerto abierto = una puerta. Lo importante no es el
+    numero, es QUE SERVICIO y QUE VERSION hay detras (eso es lo atacable).
+
+-------------------------------------------------------------------------------
+2. PARA BUSCAR VULNERABILIDADES DE UNA VERSION (las "CVE")
+-------------------------------------------------------------------------------
+Que es una CVE: Common Vulnerabilities and Exposures. Es un ID unico para una
+vulnerabilidad concreta. Formato: CVE-ANIO-NUMERO  (ej: CVE-2017-0144 = EternalBlue).
+
+Donde buscarlas:
+- NVD (NIST), la base oficial  : https://nvd.nist.gov/vuln/search
+    La fuente seria. Te da descripcion + puntuacion CVSS + que versiones afecta.
+- MITRE (quien asigna el ID)   : https://www.cve.org/
+- CVE Details (comodo de leer) : https://www.cvedetails.com/
+    Puedes buscar por producto (ej: "Microsoft Windows 11") y ver su lista de CVEs.
+- Microsoft MSRC               : https://msrc.microsoft.com/update-guide/
+    Para CVEs de productos Microsoft, con el parche oficial de cada una.
+
+Como se busca en la practica:
+  1. nmap -sV te da: servicio + VERSION (ej: "vsftpd 2.3.4").
+  2. Vas a NVD o CVE Details y buscas ese texto: "vsftpd 2.3.4".
+  3. Lees las CVEs que salen: cuales aplican a ESA version exacta.
+
+-------------------------------------------------------------------------------
+3. PARA VER SI HAY EXPLOIT PUBLICO DE ESA CVE
+-------------------------------------------------------------------------------
+- Exploit-DB           : https://www.exploit-db.com/
+    Exploits publicos. Buscas por CVE o por producto/version.
+- searchsploit (local) : en BlackArch/Kali ya lo tienes. Es Exploit-DB en tu disco.
+    Buscas offline el nombre del servicio. (Es una herramienta, no una web.)
+- Vulners              : https://vulners.com/  (agrega CVE + exploits + noticias)
+- GitHub               : muchas PoC viven en repos; buscar "<CVE> PoC".
+
+OJO: que exista una CVE NO significa que tu maquina sea vulnerable. Hay que
+confirmar la version exacta, la config, y si esta parcheada.
+
+-------------------------------------------------------------------------------
+4. COMO INTERPRETAR LA GRAVEDAD (puntuacion CVSS)
+-------------------------------------------------------------------------------
+Cada CVE trae una nota de 0.0 a 10.0 (CVSS). Lectura rapida:
+    0.1 - 3.9   BAJA
+    4.0 - 6.9   MEDIA
+    7.0 - 8.9   ALTA
+    9.0 - 10.0  CRITICA   <- prioridad maxima
+Mira tambien el "vector": si dice AV:N (Attack Vector: Network) = explotable por
+red, remota = mas peligrosa que una que necesita acceso fisico o local.
+
+-------------------------------------------------------------------------------
+5. DESDE NMAP MISMO (scripts NSE)
+-------------------------------------------------------------------------------
+nmap trae scripts que ya chequean vulnerabilidades conocidas:
+- Categoria "vuln"   : nmap --script vuln <ip>   (chequea CVEs conocidas)
+- Scripts por servicio: ej. los smb-* para el puerto 445.
+Donde ver que hace cada script: https://nmap.org/nsedoc/
+  (NSEDoc = el manual oficial de todos los scripts de nmap).
+
+-------------------------------------------------------------------------------
+RESUMEN DEL FLUJO MENTAL
+-------------------------------------------------------------------------------
+  puerto abierto  ->  que servicio/version (nmap -sV)
+                  ->  buscar esa version en NVD / CVE Details
+                  ->  mirar CVSS (gravedad) y si es remota
+                  ->  ver si hay exploit (Exploit-DB / searchsploit)
+                  ->  CONFIRMAR en el lab antes de dar nada por hecho.
+===============================================================================
