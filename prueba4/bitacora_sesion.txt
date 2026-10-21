@@ -75,6 +75,24 @@ PAUSA (2026-10-12, noche): se deja la prueba aqui por hoy.
   Comprobar tambien que la VM sigue en 192.168.1.21 (DHCP puede cambiarla).
   Despues -> FASE 3 (payload crudo, Tarea 3.1 del guion).
 
+RETOMA (2026-10-20):
+  Tarea 1 - comprobacion previa:
+    - nmap -sn -> VM sigue en 192.168.1.21 (DHCP no la cambio).
+    - Regla nft temporal y escenario: "todo esta como deberia" (confirmado por mi).
+  Siguiente -> FASE 3, Tarea 3.1 (payload crudo, Defender ENCENDIDO).
+
+FASE 3 - TAREA 3.1 (2026-10-21)
+  - Payload crudo generado con msfvenom: crudo_p4.exe (meterpreter reverse_tcp x64, LPORT 443).
+  - Pendiente: transferencia a la VM (revisar firewall para el puerto de descarga),
+    y anotar si Defender lo borra, cuanto tarda y nombre de la amenaza.
+
+  Formato cambiado a estilo HTB (preguntas con formato de respuesta).
+  TASK 1 - Firewall BlackArch:
+    P1 OK: puertos necesarios = 8000 (descarga http.server) y 443 (reverse meterpreter).
+    P2 OK: 'insert' (regla arriba, antes del reject; 'add' la deja debajo = inutil).
+    PAUSA 2026-10-21 -> RETOMAR EN P3: escribir regla insert enp8s0 + 192.168.1.21 + tcp 8000 accept.
+    Luego P4 (nft -a list ruleset), P5 (verificar), y Task 2 = transferencia.
+
 (aqui anotas IPs, puertos abiertos, que detecto Defender, resultados)
 
 ===============================================================================
