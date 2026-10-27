@@ -133,3 +133,12 @@ PAUSA (2026-10-27, ~7am) -> RETOMAR EN:
   4. Transferencia (http.server 8000) con Defender ENCENDIDO: detecta? cuando
      (descarga/ejecucion)? cuanto tarda? nombre de amenaza?
   Reglas temporales activas: handle 14 (443). Recordar limpiar en Fase 4.
+
+TAREA 3.1 CERRADA (2026-10-27):
+  - Defender detecto fish.exe como "Trojan" (anotar nombre exacto cuando lo
+    veas en Historial de proteccion; da la familia/firma).
+  - Momento: EN EJECUCION (no en la descarga via http.server). Bajo bien, pero
+    al correrlo lo cazo al instante (casi 0 s). => deteccion en tiempo real por
+    comportamiento/firma al cargar en memoria.
+  - Leccion base: payload crudo = firma conocida = cae seguro.
+  Siguiente -> TAREA 3.2 (mismo payload con encoder, Defender ON, comparar).
